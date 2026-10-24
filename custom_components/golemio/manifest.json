@@ -1,11 +1,15 @@
 {
-	"domain": "golemio",
-	"name": "Golemio",
-	"codeowners": [ "@cmajda" ],
-	"dependencies": [],
-	"documentation": "https://github.com/Cmajda/ha_golemio",
-	"iot_class": "cloud_polling",
-	"issue_tracker": "https://github.com/Cmajda/ha_golemio/issues",
-	"requirements": [],
-	"version": "0.0.4"
+  "domain": "golemio",
+  "name": "Golemio",
+  "codeowners": [
+    "@cmajda"
+  ],
+  "dependencies": [],
+  "documentation": "https://github.com/Cmajda/ha_golemio",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/Cmajda/ha_golemio/issues",
+  "requirements": [
+    "ratelimit==2.2.1"
+  ],
+  "version": "0.0.4"
 }

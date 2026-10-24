@@ -1,139 +1,104 @@
-# Prague waste separation point for HA using GolemioAPI
+# Prague waste separation points for Home Assistant using Golemio API
 
+Integrace vytváří senzory pro datum příštího svozu, pravidelné dny svozu a u měřených kontejnerů procento zaplnění. Datum a dny svozu jsou dostupné podle dat poskytovaných Golemiem. Stávající názvy a unikátní ID senzorů zůstávají zachovány.
 
-## Krok 1 - Registrace API Golemio:
-Registrace: [https://api.golemio.cz/api-keys/auth/sign-up](https://api.golemio.cz/api-keys/auth/sign-up)  
-po registraci se vegeneruje token, ten si uložte budeme ho potřebovat.   
-## Krok 2 - Zjištěni ID skupiny kontejnerů:
-1. [Golemio API](https://api.golemio.cz/v2/docs/openapi/#/)
-2. Klikni na zelený rámeček s `Authorize 🔒` a vlož token z kroku 1
-3. Vyber `Waste Collection (v2)` klikni na první dotaz `(Get All Waste Collection Station)`
-![Waste collection](web_waste_collection.png)  
-4. Kliknout na `Try it out` a vyplnit požadované informace  
-![Get waste id](web_get_waste_collection.png)  
-- Do `latlng` zadej souřadnice - ideálně přímo vybraného kontejneru (možno získat na mapy.cz) v zobrazeném formátu. Např. "50.0890,14.4168" 
-- Do `range`zadej rozsah, ideálně "50" (pokud jsi zadal souřadnice kontejnerů)
-- `districts` je možné nechat prazdné
-- z `accessibility` odeber předvyplněné řádky pomocí symbolu **-** vpravo
-- `limit` je možné nastavit na "1"
-- `offset`je nechte na "0"
-- `onlyMonitored` - ideálně nastavit na "false"
-- `id` - prázdné
-- `ksnkoId` - prázdné
+## 1. Registrace API Golemio
 
-5. Kliknout na Execute  
-   - Curl by měl vypadat cca. takto: 
-	```
-	curl -X 'GET' 'https://api.golemio.cz/v2/sortedwastestations?latlng=50.0890%2C14.4168&range=50&limit=3&offset=0&onlyMonitored=false' -H 'accept: application/json' -H 'X-Access-Token: tokentokentokentokentokentokentokentokentoken'
-	```
-6. V části **Response body** najdi (CTRL + F)  skupinu kontejnerů podle ulice. Např. "Valentinská" a zkopíruj hodnotu "id", které je o dva řádky výše. V tomto případě 3497.  
+Zaregistrujte se na [Golemio API](https://api.golemio.cz/api-keys/auth/sign-up) a uložte si vygenerovaný token.
 
-	```json
-        "district": "praha-1",
-        "id": 3497,
-        "is_monitored": true,
-        "name": "Valentinská 1/13",
-        "station_number": "0001/ 001",
-        "updated_at": "2023-08-22T05:25:28.292Z"
-	```
-## Krok 3 - Konfigurace HA:  
-- vložit token z kroku do secrets.yaml
-	```yaml 
-	golemio: "<TOKEN>"
-	```
-- nakonfigurovat senzory v configuration.yaml 
-	```yaml
-	sensor: 
-	 - platform: golemio
-	   name: conc3497 # pod tímto jménem můžete dohledat požadovanou entitu (sensor.conc3497_0_papir_datum_odvozu)
-	   token: !secret golemio
-	   container_id: 3497
+## 2. Zjištění KSNKO ID jednotlivých kontejnerů
 
-	- platform: golemio
-	  name: conc1 # pod tímto jménem můžete dohledat požadovanou entitu (sensor.conc1_4_kovy_datum_odvozu)
-	  token: !secret golemio
-	  container_id: 1
-	```
-- V případe, že používáte v hlavním configuration.yaml funkci include sensor: `!include_dir_merge_list sensors/` je nutné vynechat 1. řádek `sensors:` a dodržet formátování.  
+1. Otevřete [dokumentaci Golemio API](https://api.golemio.cz/docs/openapi/).
+2. Klikněte na `Authorize` a vložte token.
+3. Vyberte `Waste Collection (v2)` a dotaz `GET All Waste Collection Stations`.
+4. Klikněte na `Try it out`. Vyplňte `latlng` souřadnicemi stanoviště, například `50.0890,14.4168`, a `range` vzdáleností v metrech, například `50`. Pro zobrazení všech kontejnerů nastavte `onlyMonitored` na `false`. Filtry `id` a `ksnkoId` nechte prázdné.
+5. Klikněte na `Execute` a najděte požadované stanoviště podle názvu nebo ulice.
+6. V jeho `properties.containers` vyberte jednotlivý kontejner a zkopírujte jeho `ksnko_id`. Toto číslo patří do YAML položky `container_id`.
 
-	```yaml
-	- platform: golemio
-	  name: conc3497 
-	  token: !secret golemio
-	  container_id: 3497
-	- platform: golemio
-	  name: conc1
-	  token: !secret golemio
-	  container_id: 1
-	```
-- ***Restartovat HA***
+Příklad struktury odpovědi:
 
-## Krok 4 - nastavení karet
-Zkontrolujte stav entity v `Nástroje pro vývojáře`.  
-`Senzor conc1`  
-![Dev console con1](ha_develop_console_con1.png)  
+```json
+{
+  "properties": {
+    "id": 3497,
+    "containers": [
+      {"ksnko_id": 15288, "container_id": 15288, "trash_type": {"description": "Papír"}},
+      {"ksnko_id": 15292, "container_id": 15292, "trash_type": {"description": "Plast"}}
+    ]
+  }
+}
+```
 
-`Senzor conc3497`  
-![Dev console con3497](ha_develop_console_con3497.png)  
+`properties.id` označuje celé stanoviště. Nepoužívejte ho jako `container_id`. Každý požadovaný kontejner se konfiguruje samostatně. Příklady ID nahraďte vlastními hodnotami z API.
 
-### Vytvořit kartu entity  
-Přidat novou kartu, "Podle entity" a začněte psát: "sensor.conc" - zobrazí se všechny vytvořené senzory pro zadanou lokaci.  
-- Vytvořit novou kartu Entity pro sensor1.  
+API filtr `id` je zastaralý. Integrace používá filtr `ksnkoId`, ale název YAML položky `container_id` se nemění. Tím je vyřešena nejasnost popsaná v [upstream issue #15](https://github.com/Cmajda/ha_golemio/issues/15).
 
-	### Příklad 1:
-	`Senzor conc1`
-	```yaml 
-		type: entities
-		entities:
-		  - sensor.conc1_4_kovy_datum_odvozu
-		  - sensor.conc1_5_barevne_sklo_datum_odvozu
-		  - sensor.conc1_6_barevne_sklo_datum_odvozu
-		  - sensor.conc1_7_cire_sklo_datum_odvozu
-		state_color: false
-		title: Conc1
-	```  
-	![card for sensor conc1](yaml_con1.png)  
-- Vytvořit novou kartu Entity pro `sensor3497`.  	
-	### Příklad 2:
-	`Senzor conc3497`
-	```yaml 
-		type: entities
-		entities:
-		  - sensor.conc3497_0_papir_datum_odvozu
-		  - sensor.conc3497_0_papir_volna_kapacita_0
-		  - sensor.conc3497_1_plast_datum_odvozu
-		  - sensor.conc3497_1_plast_volna_kapacita_1
-		  - sensor.conc3497_2_barevne_sklo_datum_odvozu
-		  - sensor.conc3497_2_barevne_sklo_volna_kapacita_2
-		  - sensor.conc3497_3_cire_sklo_datum_odvozu
-		  - sensor.conc3497_3_cire_sklo_volna_kapacita_3
-		state_color: false
-		title: Conc3497
-	```  
-	![card for sensor conc3497](yaml_con3497.png) 
-- Doporučujeme si senzory přejmenovat na typ odpadu.  
-## Konečný výsledek  
-![Finalní výsledek 1](final.png)  
-![Finalní výsledek pojmenovaný](EntitiesCard.png)
+## 3. Konfigurace Home Assistant
 
-# Řešení problémů
-1. Stáhnout poslední verzi
-2. Zakomentovat senzory 
-   ```yaml
-   - platform: golemio
-    #   name: conc
-    #   token: !secret golemio
-    #   container_id: 3497
-    ```
-3. Restartovat HA
-4. Odebrání nedostupných entit
-    - Nastavení > Zařízení a služby > Entity 
-    - Odebrat nedostupné entity (ikona vykřičník v červeném kolečku)
-    - Odkomentovat senzory
-    ```yaml
-    - platform: golemio
-        name: conc3497
-        token: !secret golemio
-        container_id: 3497 
-    ```
-5. Restartovat HA
+Do `secrets.yaml` vložte token:
+
+```yaml
+golemio: "<TOKEN>"
+```
+
+Do `configuration.yaml` přidejte kontejnery pod jediný klíč `sensor:`. Pokud již tento klíč používáte, doplňte položky do jeho existujícího seznamu.
+
+```yaml
+sensor:
+  - platform: golemio
+    name: conc15288
+    token: !secret golemio
+    container_id: 15288
+  - platform: golemio
+    name: conc15292
+    token: !secret golemio
+    container_id: 15292
+```
+
+Při použití `sensor: !include sensors.yaml` patří do `sensors.yaml` pouze seznam, bez dalšího klíče `sensor:`:
+
+```yaml
+- platform: golemio
+  name: conc15288
+  token: !secret golemio
+  container_id: 15288
+- platform: golemio
+  name: conc15292
+  token: !secret golemio
+  container_id: 15292
+```
+
+Po změně konfigurace restartujte Home Assistant. Ujistěte se, že názvy a ID odpovídají kontejnerům, které chcete sledovat.
+
+## 4. Senzory a karty
+
+V nástrojích Home Assistant vyhledejte entity podle nastaveného názvu, například `sensor.conc15288`. Pro měřený papírový kontejner mohou být dostupné tyto senzory:
+
+```yaml
+type: entities
+title: Papír
+entities:
+  - sensor.conc15288_0_papir_datum_odvozu
+  - sensor.conc15288_0_papir_dny_odvozu
+  - sensor.conc15288_0_papir_volna_kapacita_0
+```
+
+Senzor `dny_odvozu` poskytuje například `Po, St, So`; jeho přidání vychází z [příspěvku cniry](https://github.com/cniry/ha_golemio/commit/dc145da62645a81a645f453ab4b2c2bca69e953f). Procentní senzor vzniká pouze při dostupném měření. Přes zachovaný původní název `volná kapacita` představuje hodnota API `percent_calculated` procento zaplnění. Chybějící měření se nenahrazuje datem svozu.
+
+## Řešení problémů
+
+- Při výpadku sítě, DNS, chybě HTTP nebo prázdné odpovědi při startu integrace požádá Home Assistant o opakování nastavení. Není nutné mazat entity.
+- Při chybě během pravidelné aktualizace jsou senzory označeny jako nedostupné. Po úspěšné aktualizaci se obnoví.
+- Požadavky mají časový limit 20 sekund a zachovávají omezení 20 požadavků za 10 sekund. Jednotlivé senzory se aktualizují nejvýše jednou za 5 minut.
+- Při trvale prázdné odpovědi ověřte KSNKO ID konkrétního kontejneru, nikoli ID stanoviště. Viz také [upstream issue #16](https://github.com/Cmajda/ha_golemio/issues/16).
+- Při HTTP 401 ověřte token. Podrobnosti o dalších chybách jsou v protokolu Home Assistant pod `custom_components.golemio`.
+
+## Development checks
+
+The focused regression tests use the real Home Assistant sensor classes, registries, and state machine. Run them in the same container image as CI:
+
+```sh
+docker run --rm --network none -v "$(pwd):/workspace:ro" -w /workspace --entrypoint python ghcr.io/home-assistant/home-assistant:2026.10.2 -m unittest discover -s tests -v
+```
+
+The tests use synthetic IDs and mock HTTP responses. No API token or live Home Assistant configuration is required.

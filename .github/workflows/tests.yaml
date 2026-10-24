@@ -1,0 +1,22 @@
+name: Sensor regression tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sensors:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test Golemio sensors on Home Assistant 2026.10.2
+        run: >-
+          docker run --rm --network none
+          --mount "type=bind,source=$GITHUB_WORKSPACE,target=/workspace,readonly"
+          --workdir /workspace --entrypoint python
+          ghcr.io/home-assistant/home-assistant:2026.10.2
+          -m unittest discover -s tests -v
