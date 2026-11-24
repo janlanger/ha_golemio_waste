@@ -99,22 +99,14 @@ def collection(*features: dict[str, Any]) -> dict[str, Any]:
     return {"type": "FeatureCollection", "features": deepcopy(list(features))}
 
 
-def pickdays(ksnko_id: int, *dates: str) -> list[dict[str, Any]]:
-    return [{"ksnko_id": ksnko_id, "generated_dates": list(dates)}]
-
-
 @pytest.fixture
 def mock_api(aioclient_mock):
     """Answer like Golemio for the test station."""
     aioclient_mock.get(
         STATIONS_URL, params={"ksnkoId": "15288"}, json=collection(STATION_FEATURE)
     )
-    for ksnko_id in (15288, 15289, 15290, 15291):
-        aioclient_mock.get(
-            PICKDAYS_URL,
-            params={"ksnkoId": str(ksnko_id)},
-            json=pickdays(ksnko_id, "2026-11-20", "2026-11-26", "2026-11-28"),
-        )
+    # Internal endpoint: public tokens get 403 there (reproduces the bug).
+    aioclient_mock.get(PICKDAYS_URL, status=403)
     return aioclient_mock
 
 

@@ -7,7 +7,7 @@ from datetime import date
 import pytest
 
 from custom_components.golemio_waste.api import select_station
-from custom_components.golemio_waste.models import parse_pick_dates, parse_stations
+from custom_components.golemio_waste.models import parse_stations
 
 from .conftest import OTHER_FEATURE, STATION_FEATURE, collection
 
@@ -42,13 +42,6 @@ def test_parse_tolerates_garbage() -> None:
 def test_parse_requires_features() -> None:
     with pytest.raises(ValueError):
         parse_stations({"error": "x"})
-
-
-def test_parse_pick_dates() -> None:
-    assert parse_pick_dates(
-        [{"ksnko_id": 1, "generated_dates": ["2026-11-28", "bad", "2026-11-26"]}]
-    ) == {1: [date(2026, 11, 26), date(2026, 11, 28)]}
-    assert parse_pick_dates({"unexpected": True}) == {}
 
 
 def test_select_station() -> None:

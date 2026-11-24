@@ -51,9 +51,6 @@ CONTAINER_SENSORS: tuple[ContainerSensorDescription, ...] = (
         translation_key="next_pick",
         device_class=SensorDeviceClass.DATE,
         value_fn=lambda c, d, t: d.next_pick(c.key, t),
-        attrs_fn=lambda c, d, t: {
-            "upcoming": [x.isoformat() for x in d.upcoming_picks(c.key, t)[:10]]
-        },
     ),
     ContainerSensorDescription(
         key="pick_days",

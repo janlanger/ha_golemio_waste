@@ -210,20 +210,3 @@ def parse_stations(payload: Any) -> list[Station]:
         except ValueError:
             _LOGGER.debug("Skipping station without identifier: %s", feature)
     return stations
-
-
-def parse_pick_dates(payload: Any) -> dict[int, list[date]]:
-    """Parse the pickdays endpoint into ``{ksnko_id: [dates]}``."""
-    result: dict[int, list[date]] = {}
-    if not isinstance(payload, list):
-        return result
-    for item in payload:
-        if not isinstance(item, dict):
-            continue
-        ksnko_id = _as_int(item.get("ksnko_id"))
-        dates = item.get("generated_dates")
-        if ksnko_id is None or not isinstance(dates, list):
-            continue
-        parsed = sorted({d for d in (_parse_date(x) for x in dates) if d is not None})
-        result.setdefault(ksnko_id, []).extend(parsed)
-    return result

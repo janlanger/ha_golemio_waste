@@ -27,9 +27,4 @@ async def async_get_config_entry_diagnostics(
         },
         "last_update_success": coordinator.last_update_success,
         "station": asdict(data.station) if data else None,
-        "pick_dates": (
-            {k: [d.isoformat() for d in v] for k, v in data.pick_dates.items()}
-            if data
-            else None
-        ),
     }

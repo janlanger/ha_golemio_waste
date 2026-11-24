@@ -9,7 +9,7 @@ Fork projektu [Cmajda/ha_golemio](https://github.com/Cmajda/ha_golemio) (přes [
 - zařízení: **stanoviště** a pod ním jednotlivé **nádoby**,
 - `percent_calculated` je správně interpretováno jako zaplněnost (0 % = prázdná),
 - jeden dotaz na API za stanoviště (dřív jeden za každý senzor),
-- kalendář odvozů.
+- kalendář nejbližších odvozů.
 
 > Doména je `golemio_waste`, integrace tedy může běžet vedle původní `golemio`.
 > Staré YAML senzory se nepřevádějí, po přechodu původní integraci odinstalujte.
@@ -50,7 +50,7 @@ Každé stanoviště je samostatná položka integrace, přidejte jich kolik pot
  ├─ 🗑 Plast – Přátelství 356/61         nádoba (připojena přes stanoviště)
  │   ├─ Zaplněnost          62 %         jen nádoby s čidlem
  │   ├─ Plná                on/off       jen nádoby s čidlem, práh v Volbách
- │   ├─ Příští odvoz        datum        atribut upcoming = další plánované termíny
+ │   ├─ Příští odvoz        datum
  │   ├─ Dny odvozu          „Po, St, Pá“ atributy duration/frequency
  │   ├─ Předpověď zaplnění  čas          predikce dodavatele čidla
  │   ├─ Poslední odvoz      čas
@@ -62,6 +62,10 @@ Je-li na stanovišti víc nádob stejného druhu, čísluje se (*Plast 1*, *Plas
 Nádoby bez čidla mají jen termíny odvozu.
 
 Zaplněnost má `state_class: measurement`, takže se ukládá do dlouhodobých statistik.
+
+Veřejné API dává u každé nádoby jen nejbližší termín odvozu, kalendář proto ukazuje
+jen ten. Endpointy `/pickdays`, `/measurements` a `/picks` jsou v Golemiu interní
+a běžný token na ně dostane 403, integrace je proto nepoužívá.
 
 ### Příklad automatizace
 

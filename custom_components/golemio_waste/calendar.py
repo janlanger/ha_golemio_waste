@@ -25,7 +25,11 @@ async def async_setup_entry(
 
 
 class StationPickCalendar(GolemioStationEntity, CalendarEntity):
-    """All-day events, one per pick day, listing the collected trash types."""
+    """All-day events, one per pick day, listing the collected trash types.
+
+    The public API only provides the next pick of each container, so the
+    calendar shows at most one upcoming pick per container.
+    """
 
     def __init__(self, coordinator: GolemioCoordinator) -> None:
         super().__init__(coordinator, "picks")
@@ -33,13 +37,10 @@ class StationPickCalendar(GolemioStationEntity, CalendarEntity):
     def _events(self, since: date) -> list[CalendarEvent]:
         data = self.coordinator.data
         by_day: dict[date, set[str]] = {}
-        for key, container in data.station.containers.items():
-            dates = set(data.pick_dates.get(key, []))
-            if container.next_pick is not None:
-                dates.add(container.next_pick)
-            for day in dates:
-                if day >= since:
-                    by_day.setdefault(day, set()).add(container.trash_type)
+        for container in data.station.containers.values():
+            day = container.next_pick
+            if day is not None and day >= since:
+                by_day.setdefault(day, set()).add(container.trash_type)
         return [
             CalendarEvent(
                 start=day,

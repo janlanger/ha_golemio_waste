@@ -14,7 +14,7 @@ import pytest
 from custom_components.golemio_waste import async_remove_config_entry_device
 from custom_components.golemio_waste.const import CONF_QUERY_KSNKO_ID, DOMAIN
 
-from .conftest import PICKDAYS_URL, STATION_FEATURE, STATIONS_URL, collection, pickdays
+from .conftest import STATION_FEATURE, STATIONS_URL, collection
 
 pytestmark = pytest.mark.freeze_time("2026-11-24T12:00:00+00:00")
 
@@ -95,13 +95,7 @@ async def test_unmonitored_container_has_no_fill_entities(
 async def test_dates(hass: HomeAssistant, mock_api, config_entry) -> None:
     await _setup(hass, config_entry)
     next_pick = hass.states.get(_entity_id(hass, "sensor", "3497_15290_next_pick"))
-    # API next_pick 2026-11-25 wins over the planned 2026-11-26.
     assert next_pick.state == "2026-11-25"
-    assert next_pick.attributes["upcoming"] == [
-        "2026-11-25",
-        "2026-11-26",
-        "2026-11-28",
-    ]
 
     station_next = hass.states.get(_entity_id(hass, "sensor", "3497_next_pick"))
     assert station_next.state == "2026-11-25"
@@ -127,8 +121,7 @@ async def test_calendar(hass: HomeAssistant, mock_api, config_entry) -> None:
     summaries = {e.start.isoformat(): e.summary for e in events}
     assert summaries == {
         "2026-11-25": "Odvoz: Papír",
-        "2026-11-26": "Odvoz: Kovy, Papír, Plast",
-        "2026-11-28": "Odvoz: Kovy, Papír, Plast",
+        "2026-11-26": "Odvoz: Kovy, Plast",
     }
 
 
@@ -149,11 +142,6 @@ async def test_query_falls_back_to_other_container(
         params={"ksnkoId": "15289"},
         json={"type": "FeatureCollection", "features": [feature]},
     )
-    for ksnko_id in (15289, 15290, 15291):
-        aioclient_mock.get(
-            PICKDAYS_URL, params={"ksnkoId": str(ksnko_id)}, json=pickdays(ksnko_id)
-        )
-
     await coordinator.async_refresh()
     await hass.async_block_till_done()
 
@@ -218,3 +206,27 @@ async def test_remove_only_stale_devices(
         identifiers={(DOMAIN, "container_3497_99999")},
     )
     assert await async_remove_config_entry_device(hass, config_entry, stale)
+
+
+async def test_forbidden_is_not_auth_failure(
+    hass: HomeAssistant, config_entry, aioclient_mock
+) -> None:
+    """403 means "no access to this data", not an invalid token."""
+    aioclient_mock.get(STATIONS_URL, params={"ksnkoId": "15288"}, status=403)
+    config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(config_entry.entry_id)
+    await hass.async_block_till_done()
+    assert config_entry.state is ConfigEntryState.SETUP_RETRY
+    flows = hass.config_entries.flow.async_progress()
+    assert not any(f["context"]["source"] == "reauth" for f in flows)
+
+
+async def test_internal_endpoints_not_used(
+    hass: HomeAssistant, mock_api, config_entry, aioclient_mock
+) -> None:
+    """Endpoints tagged "internal" in the Golemio spec are 403 for public tokens."""
+    await _setup(hass, config_entry)
+    assert config_entry.state is ConfigEntryState.LOADED
+    urls = [str(call[1]) for call in aioclient_mock.mock_calls]
+    assert urls
+    assert not any("/pickdays" in url for url in urls)

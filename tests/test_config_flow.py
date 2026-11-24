@@ -138,3 +138,6 @@ async def test_reauth(hass: HomeAssistant, aioclient_mock, config_entry) -> None
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "reauth_successful"
     assert config_entry.data["token"] == "new-token"
+    # The entry was reloaded with the new token; stop its coordinator.
+    await hass.async_block_till_done()
+    await hass.config_entries.async_unload(config_entry.entry_id)

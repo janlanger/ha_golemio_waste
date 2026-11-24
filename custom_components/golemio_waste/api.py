@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-from datetime import date
 import logging
 from typing import Any
 
 import aiohttp
 
 from .const import API_BASE_URL
-from .models import Station, parse_pick_dates, parse_stations
+from .models import Station, parse_stations
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -21,11 +20,19 @@ class GolemioError(Exception):
 
 
 class GolemioAuthError(GolemioError):
-    """The token was rejected."""
+    """The token is invalid (401)."""
 
 
 class GolemioConnectionError(GolemioError):
     """The API could not be reached or answered with an error."""
+
+
+class GolemioForbiddenError(GolemioConnectionError):
+    """The token is valid but may not access this resource (403).
+
+    Golemio answers 403 e.g. for endpoints tagged "internal" in its spec, so
+    this must not be treated as an invalid token.
+    """
 
 
 class GolemioRateLimitError(GolemioConnectionError):
@@ -46,8 +53,10 @@ class GolemioClient:
             async with self._session.get(
                 url, params=params, headers=headers, timeout=REQUEST_TIMEOUT
             ) as resp:
-                if resp.status in (401, 403):
-                    raise GolemioAuthError(f"Token rejected ({resp.status})")
+                if resp.status == 401:
+                    raise GolemioAuthError("Token rejected (401)")
+                if resp.status == 403:
+                    raise GolemioForbiddenError(f"Access denied (403) to {path}")
                 if resp.status == 429:
                     raise GolemioRateLimitError("Rate limit exceeded (429)")
                 if resp.status == 404:
@@ -96,18 +105,6 @@ class GolemioClient:
             return parse_stations(payload)
         except ValueError as err:
             raise GolemioConnectionError(str(err)) from err
-
-    async def pick_dates(self, ksnko_id: int) -> list[date]:
-        """Return planned pick dates for one container."""
-        payload = await self._get(
-            "/v2/sortedwastestations/pickdays", {"ksnkoId": ksnko_id}
-        )
-        dates = parse_pick_dates(payload)
-        if ksnko_id in dates:
-            return dates[ksnko_id]
-        # Be lenient when the API answers with a single record under another key.
-        merged = sorted({d for values in dates.values() for d in values})
-        return merged
 
 
 def select_station(stations: list[Station], ksnko_id: int | str) -> Station | None:
