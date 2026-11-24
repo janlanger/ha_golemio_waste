@@ -1,104 +1,103 @@
-# Prague waste separation points for Home Assistant using Golemio API
+# Golemio – tříděný odpad (Praha) pro Home Assistant
 
-Integrace vytváří senzory pro datum příštího svozu, pravidelné dny svozu a u měřených kontejnerů procento zaplnění. Datum a dny svozu jsou dostupné podle dat poskytovaných Golemiem. Stávající názvy a unikátní ID senzorů zůstávají zachovány.
+Integrace sleduje pražská stanoviště tříděného odpadu přes [Golemio API](https://api.golemio.cz/docs/openapi/):
+termíny odvozu a u nádob s čidlem i jejich **zaplněnost**.
 
-## 1. Registrace API Golemio
+Fork projektu [Cmajda/ha_golemio](https://github.com/Cmajda/ha_golemio) (přes [MangelSpec/ha_golemio](https://github.com/MangelSpec/ha_golemio)), přepsaný od základu:
 
-Zaregistrujte se na [Golemio API](https://api.golemio.cz/api-keys/auth/sign-up) a uložte si vygenerovaný token.
+- nastavení přes UI, vyhledání stanoviště na mapě,
+- zařízení: **stanoviště** a pod ním jednotlivé **nádoby**,
+- `percent_calculated` je správně interpretováno jako zaplněnost (0 % = prázdná),
+- jeden dotaz na API za stanoviště (dřív jeden za každý senzor),
+- kalendář odvozů.
 
-## 2. Zjištění KSNKO ID jednotlivých kontejnerů
+> Doména je `golemio_waste`, integrace tedy může běžet vedle původní `golemio`.
+> Staré YAML senzory se nepřevádějí, po přechodu původní integraci odinstalujte.
 
-1. Otevřete [dokumentaci Golemio API](https://api.golemio.cz/docs/openapi/).
-2. Klikněte na `Authorize` a vložte token.
-3. Vyberte `Waste Collection (v2)` a dotaz `GET All Waste Collection Stations`.
-4. Klikněte na `Try it out`. Vyplňte `latlng` souřadnicemi stanoviště, například `50.0890,14.4168`, a `range` vzdáleností v metrech, například `50`. Pro zobrazení všech kontejnerů nastavte `onlyMonitored` na `false`. Filtry `id` a `ksnkoId` nechte prázdné.
-5. Klikněte na `Execute` a najděte požadované stanoviště podle názvu nebo ulice.
-6. V jeho `properties.containers` vyberte jednotlivý kontejner a zkopírujte jeho `ksnko_id`. Toto číslo patří do YAML položky `container_id`.
+## Instalace
 
-Příklad struktury odpovědi:
+**HACS:** *HACS → Integrace → ⋮ → Vlastní repozitáře* → `https://github.com/janlanger/ha_golemio_waste`, kategorie *Integration*. Pak nainstalovat a restartovat HA.
 
-```json
-{
-  "properties": {
-    "id": 3497,
-    "containers": [
-      {"ksnko_id": 15288, "container_id": 15288, "trash_type": {"description": "Papír"}},
-      {"ksnko_id": 15292, "container_id": 15292, "trash_type": {"description": "Plast"}}
-    ]
-  }
-}
+**Ručně:** zkopírujte `custom_components/golemio_waste` do `config/custom_components/` a restartujte HA.
+
+Vyžaduje Home Assistant 2026.8 nebo novější.
+
+## Nastavení
+
+1. Zaregistrujte se na [api.golemio.cz](https://api.golemio.cz/api-keys/auth/sign-up) a zkopírujte si API token.
+2. *Nastavení → Zařízení a služby → Přidat integraci → Golemio Sorted Waste*.
+3. Vložte token. Při přidávání dalšího stanoviště se token předvyplní.
+4. Najděte stanoviště:
+   - **Hledat na mapě:** výchozí je poloha domova, posuňte značku a upravte poloměr. Stanoviště s čidly zaplněnosti jsou označena 📶.
+   - **Zadat KSNKO ID:** ID libovolné nádoby na stanovišti nebo stanoviště samotného.
+
+Každé stanoviště je samostatná položka integrace, přidejte jich kolik potřebujete.
+
+### Volby
+
+| Volba | Výchozí | Význam |
+|---|---|---|
+| Nádoba je plná od | 80 % | Práh pro binární senzor *Plná* |
+| Interval aktualizace | 30 min | API data cachuje 30 minut, kratší interval nic nepřinese (minimum 15) |
+
+## Zařízení a entity
+
+```
+📍 Přátelství 356/61                     stanoviště
+ ├─ Příští odvoz            (datum)      nejbližší odvoz čehokoli, atribut trash_types
+ ├─ Odvozy                  (kalendář)   celodenní události „Odvoz: Papír, Plast“
+ │
+ ├─ 🗑 Plast – Přátelství 356/61         nádoba (připojena přes stanoviště)
+ │   ├─ Zaplněnost          62 %         jen nádoby s čidlem
+ │   ├─ Plná                on/off       jen nádoby s čidlem, práh v Volbách
+ │   ├─ Příští odvoz        datum        atribut upcoming = další plánované termíny
+ │   ├─ Dny odvozu          „Po, St, Pá“ atributy duration/frequency
+ │   ├─ Předpověď zaplnění  čas          predikce dodavatele čidla
+ │   ├─ Poslední odvoz      čas
+ │   └─ Poslední měření     čas          diagnostika
+ └─ 🗑 Papír – Přátelství 356/61 …
 ```
 
-`properties.id` označuje celé stanoviště. Nepoužívejte ho jako `container_id`. Každý požadovaný kontejner se konfiguruje samostatně. Příklady ID nahraďte vlastními hodnotami z API.
+Je-li na stanovišti víc nádob stejného druhu, čísluje se (*Plast 1*, *Plast 2*).
+Nádoby bez čidla mají jen termíny odvozu.
 
-API filtr `id` je zastaralý. Integrace používá filtr `ksnkoId`, ale název YAML položky `container_id` se nemění. Tím je vyřešena nejasnost popsaná v [upstream issue #15](https://github.com/Cmajda/ha_golemio/issues/15).
+Zaplněnost má `state_class: measurement`, takže se ukládá do dlouhodobých statistik.
 
-## 3. Konfigurace Home Assistant
-
-Do `secrets.yaml` vložte token:
+### Příklad automatizace
 
 ```yaml
-golemio: "<TOKEN>"
+automation:
+  - alias: Připomenout odvoz papíru
+    triggers:
+      - trigger: calendar
+        event: start
+        offset: "-12:00:00"
+        entity_id: calendar.pratelstvi_356_61_odvozy
+    conditions:
+      - condition: template
+        value_template: "{{ 'Papír' in trigger.calendar_event.summary }}"
+    actions:
+      - action: notify.notify
+        data:
+          message: "Zítra se odváží papír."
 ```
 
-Do `configuration.yaml` přidejte kontejnery pod jediný klíč `sensor:`. Pokud již tento klíč používáte, doplňte položky do jeho existujícího seznamu.
+## Vývoj
 
-```yaml
-sensor:
-  - platform: golemio
-    name: conc15288
-    token: !secret golemio
-    container_id: 15288
-  - platform: golemio
-    name: conc15292
-    token: !secret golemio
-    container_id: 15292
+Testy používají [pytest-homeassistant-custom-component](https://github.com/MatthewFlamm/pytest-homeassistant-custom-component):
+
+```bash
+pip install -r requirements_test.txt
+pytest
 ```
 
-Při použití `sensor: !include sensors.yaml` patří do `sensors.yaml` pouze seznam, bez dalšího klíče `sensor:`:
+Nebo bez lokálního Pythonu:
 
-```yaml
-- platform: golemio
-  name: conc15288
-  token: !secret golemio
-  container_id: 15288
-- platform: golemio
-  name: conc15292
-  token: !secret golemio
-  container_id: 15292
+```bash
+docker run --rm -v "$PWD":/src:ro python:3.14-slim sh -c \
+  'pip install -q -r /src/requirements_test.txt && cp -r /src /work && cd /work && pytest -q'
 ```
 
-Po změně konfigurace restartujte Home Assistant. Ujistěte se, že názvy a ID odpovídají kontejnerům, které chcete sledovat.
+## Licence
 
-## 4. Senzory a karty
-
-V nástrojích Home Assistant vyhledejte entity podle nastaveného názvu, například `sensor.conc15288`. Pro měřený papírový kontejner mohou být dostupné tyto senzory:
-
-```yaml
-type: entities
-title: Papír
-entities:
-  - sensor.conc15288_0_papir_datum_odvozu
-  - sensor.conc15288_0_papir_dny_odvozu
-  - sensor.conc15288_0_papir_volna_kapacita_0
-```
-
-Senzor `dny_odvozu` poskytuje například `Po, St, So`; jeho přidání vychází z [příspěvku cniry](https://github.com/cniry/ha_golemio/commit/dc145da62645a81a645f453ab4b2c2bca69e953f). Procentní senzor vzniká pouze při dostupném měření. Přes zachovaný původní název `volná kapacita` představuje hodnota API `percent_calculated` procento zaplnění. Chybějící měření se nenahrazuje datem svozu.
-
-## Řešení problémů
-
-- Při výpadku sítě, DNS, chybě HTTP nebo prázdné odpovědi při startu integrace požádá Home Assistant o opakování nastavení. Není nutné mazat entity.
-- Při chybě během pravidelné aktualizace jsou senzory označeny jako nedostupné. Po úspěšné aktualizaci se obnoví.
-- Požadavky mají časový limit 20 sekund a zachovávají omezení 20 požadavků za 10 sekund. Jednotlivé senzory se aktualizují nejvýše jednou za 5 minut.
-- Při trvale prázdné odpovědi ověřte KSNKO ID konkrétního kontejneru, nikoli ID stanoviště. Viz také [upstream issue #16](https://github.com/Cmajda/ha_golemio/issues/16).
-- Při HTTP 401 ověřte token. Podrobnosti o dalších chybách jsou v protokolu Home Assistant pod `custom_components.golemio`.
-
-## Development checks
-
-The focused regression tests use the real Home Assistant sensor classes, registries, and state machine. Run them in the same container image as CI:
-
-```sh
-docker run --rm --network none -v "$(pwd):/workspace:ro" -w /workspace --entrypoint python ghcr.io/home-assistant/home-assistant:2026.10.2 -m unittest discover -s tests -v
-```
-
-The tests use synthetic IDs and mock HTTP responses. No API token or live Home Assistant configuration is required.
+Apache 2.0, viz [LICENSE](LICENSE).
