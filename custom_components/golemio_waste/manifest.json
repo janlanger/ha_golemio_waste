@@ -1,0 +1,13 @@
+{
+  "domain": "golemio_waste",
+  "name": "Golemio Sorted Waste",
+  "codeowners": ["@janlanger"],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/janlanger/ha_golemio_waste",
+  "integration_type": "hub",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/janlanger/ha_golemio_waste/issues",
+  "requirements": [],
+  "version": "1.0.0"
+}

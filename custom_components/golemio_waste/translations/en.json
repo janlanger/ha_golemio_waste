@@ -1,0 +1,105 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Golemio API token",
+        "description": "Get a free token at {signup_url}.",
+        "data": {
+          "token": "API token"
+        }
+      },
+      "method": {
+        "title": "Find a station",
+        "menu_options": {
+          "location": "Search on the map",
+          "manual": "Enter KSNKO ID"
+        }
+      },
+      "location": {
+        "title": "Search area",
+        "description": "Move the marker and adjust the radius. Stations with fill sensors are marked with 📶.",
+        "data": {
+          "location": "Area",
+          "only_monitored": "Only stations with fill sensors"
+        }
+      },
+      "station": {
+        "title": "Choose a station",
+        "data": {
+          "station": "Station"
+        }
+      },
+      "manual": {
+        "title": "KSNKO ID",
+        "description": "KSNKO ID of any container at the station (or of the station itself).",
+        "data": {
+          "ksnko_id": "KSNKO ID"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Golemio token rejected",
+        "description": "Enter a new Golemio API token.",
+        "data": {
+          "token": "API token"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "The token was rejected.",
+      "cannot_connect": "Cannot reach the Golemio API.",
+      "no_stations": "No station found in this area.",
+      "all_configured": "All stations in this area are already added.",
+      "not_found": "No station found for this ID."
+    },
+    "abort": {
+      "already_configured": "This station is already configured.",
+      "reauth_successful": "Token updated."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Options",
+        "data": {
+          "full_threshold": "Container is full from",
+          "scan_interval_minutes": "Update interval"
+        },
+        "data_description": {
+          "scan_interval_minutes": "The API caches data for 30 minutes, shorter intervals bring nothing."
+        }
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "full": {
+        "name": "Full"
+      }
+    },
+    "calendar": {
+      "picks": {
+        "name": "Pickups"
+      }
+    },
+    "sensor": {
+      "fill_level": {
+        "name": "Fill level"
+      },
+      "next_pick": {
+        "name": "Next pickup"
+      },
+      "pick_days": {
+        "name": "Pickup days"
+      },
+      "predicted_full": {
+        "name": "Predicted full"
+      },
+      "last_pick": {
+        "name": "Last pickup"
+      },
+      "last_measurement": {
+        "name": "Last measurement"
+      }
+    }
+  }
+}

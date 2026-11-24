@@ -1,0 +1,105 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Token Golemio API",
+        "description": "Token zdarma získáte na {signup_url}.",
+        "data": {
+          "token": "API token"
+        }
+      },
+      "method": {
+        "title": "Vyhledání stanoviště",
+        "menu_options": {
+          "location": "Hledat na mapě",
+          "manual": "Zadat KSNKO ID"
+        }
+      },
+      "location": {
+        "title": "Oblast hledání",
+        "description": "Posuňte značku a upravte poloměr. Stanoviště s čidly zaplněnosti jsou označena 📶.",
+        "data": {
+          "location": "Oblast",
+          "only_monitored": "Jen stanoviště s čidly zaplněnosti"
+        }
+      },
+      "station": {
+        "title": "Výběr stanoviště",
+        "data": {
+          "station": "Stanoviště"
+        }
+      },
+      "manual": {
+        "title": "KSNKO ID",
+        "description": "KSNKO ID libovolné nádoby na stanovišti (nebo stanoviště).",
+        "data": {
+          "ksnko_id": "KSNKO ID"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Token Golemio byl odmítnut",
+        "description": "Zadejte nový token Golemio API.",
+        "data": {
+          "token": "API token"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Token byl odmítnut.",
+      "cannot_connect": "Golemio API není dostupné.",
+      "no_stations": "V této oblasti nebylo nalezeno žádné stanoviště.",
+      "all_configured": "Všechna stanoviště v oblasti už jsou přidaná.",
+      "not_found": "Pro toto ID nebylo nalezeno žádné stanoviště."
+    },
+    "abort": {
+      "already_configured": "Toto stanoviště už je nastavené.",
+      "reauth_successful": "Token byl aktualizován."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Nastavení",
+        "data": {
+          "full_threshold": "Nádoba je plná od",
+          "scan_interval_minutes": "Interval aktualizace"
+        },
+        "data_description": {
+          "scan_interval_minutes": "API data cachuje 30 minut, kratší interval nic nepřinese."
+        }
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "full": {
+        "name": "Plná"
+      }
+    },
+    "calendar": {
+      "picks": {
+        "name": "Odvozy"
+      }
+    },
+    "sensor": {
+      "fill_level": {
+        "name": "Zaplněnost"
+      },
+      "next_pick": {
+        "name": "Příští odvoz"
+      },
+      "pick_days": {
+        "name": "Dny odvozu"
+      },
+      "predicted_full": {
+        "name": "Předpověď zaplnění"
+      },
+      "last_pick": {
+        "name": "Poslední odvoz"
+      },
+      "last_measurement": {
+        "name": "Poslední měření"
+      }
+    }
+  }
+}

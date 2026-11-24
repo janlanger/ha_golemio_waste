@@ -1,0 +1,21 @@
+{
+  "entity": {
+    "binary_sensor": {
+      "full": {
+        "default": "mdi:delete-empty",
+        "state": { "on": "mdi:delete-alert" }
+      }
+    },
+    "calendar": {
+      "picks": { "default": "mdi:calendar-clock" }
+    },
+    "sensor": {
+      "fill_level": { "default": "mdi:delete-variant" },
+      "next_pick": { "default": "mdi:truck-delivery" },
+      "pick_days": { "default": "mdi:calendar-week" },
+      "predicted_full": { "default": "mdi:delete-clock" },
+      "last_pick": { "default": "mdi:delete-restore" },
+      "last_measurement": { "default": "mdi:access-point" }
+    }
+  }
+}

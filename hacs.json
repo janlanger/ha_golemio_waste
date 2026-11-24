@@ -1,5 +1,6 @@
 {
-	"name": "Prague waste separation points",
-	"homeassistant": "0.110.0",
-	"country": [ "CZ" ]
+  "name": "Golemio Sorted Waste",
+  "homeassistant": "2026.8.0",
+  "country": ["CZ"],
+  "render_readme": true
 }
