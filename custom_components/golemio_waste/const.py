@@ -17,6 +17,9 @@ DEFAULT_SCAN_INTERVAL_MINUTES: Final = 30
 MIN_SCAN_INTERVAL_MINUTES: Final = 15
 
 DEFAULT_SEARCH_RADIUS_M: Final = 300
+# Loading a configured station: search this close to its stored coordinates.
+STATION_LOOKUP_RADIUS_M: Final = 100
+STATION_LOOKUP_LIMIT: Final = 20
 MAX_SEARCH_RESULTS: Final = 30
 
 ATTRIBUTION: Final = "Data provided by Golemio (Prague Data Platform)"

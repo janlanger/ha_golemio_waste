@@ -7,7 +7,7 @@ from datetime import date, timedelta
 import logging
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_TOKEN
+from homeassistant.const import CONF_LATITUDE, CONF_LONGITUDE, CONF_TOKEN
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -20,6 +20,8 @@ from .const import (
     CONF_STATION_ID,
     DEFAULT_SCAN_INTERVAL_MINUTES,
     DOMAIN,
+    STATION_LOOKUP_LIMIT,
+    STATION_LOOKUP_RADIUS_M,
 )
 from .models import Station
 
@@ -74,31 +76,65 @@ class GolemioCoordinator(DataUpdateCoordinator[GolemioData]):
         return GolemioData(station=station)
 
     async def _fetch_station(self) -> Station:
-        """Query the station, trying other known container IDs as fallback.
+        """Load the whole station.
 
-        The API is queried by a container KSNKO ID. If that container is
-        removed from the station, any other known container still works.
+        ``?ksnkoId=`` returns the station with only the matching container, so
+        the complete container list is read by searching around the station's
+        coordinates. The KSNKO lookup only finds (or re-finds) those coordinates.
         """
-        stored = self.config_entry.data.get(CONF_QUERY_KSNKO_ID, self.station_id)
-        candidates: list[str] = [str(stored)]
+        data = self.config_entry.data
+        if CONF_LATITUDE in data and CONF_LONGITUDE in data:
+            station = await self._find_near(data[CONF_LATITUDE], data[CONF_LONGITUDE])
+            if station is not None:
+                return station
+
+        located = await self._locate_by_ksnko_id()
+        if located.latitude is None or located.longitude is None:
+            _LOGGER.warning(
+                "Station %s has no coordinates, only container %s is available",
+                self.station_id,
+                ", ".join(located.containers),
+            )
+            return located
+
+        self.hass.config_entries.async_update_entry(
+            self.config_entry,
+            data={
+                **self.config_entry.data,
+                CONF_LATITUDE: located.latitude,
+                CONF_LONGITUDE: located.longitude,
+            },
+        )
+        station = await self._find_near(located.latitude, located.longitude)
+        return station if station is not None else located
+
+    async def _find_near(self, latitude: float, longitude: float) -> Station | None:
+        stations = await self.client.search_stations(
+            latitude, longitude, STATION_LOOKUP_RADIUS_M, limit=STATION_LOOKUP_LIMIT
+        )
+        return next((s for s in stations if s.station_id == self.station_id), None)
+
+    async def _locate_by_ksnko_id(self) -> Station:
+        """Find the station by the KSNKO ID of one of its containers.
+
+        If the stored container was removed, any other known container works.
+        """
+        stored = str(self.config_entry.data.get(CONF_QUERY_KSNKO_ID, self.station_id))
+        candidates: list[str] = [stored]
         if self.data is not None:
             candidates += [str(k) for k in self.data.station.container_ksnko_ids()]
         candidates.append(self.station_id)
 
-        tried: set[str] = set()
-        for candidate in candidates:
-            if candidate in tried:
-                continue
-            tried.add(candidate)
+        for candidate in dict.fromkeys(candidates):
             stations = await self.client.stations_by_ksnko_id(candidate)
             station = next(
                 (s for s in stations if s.station_id == self.station_id), None
             )
             if station is None:
                 continue
-            if candidate != str(stored):
+            if candidate != stored:
                 _LOGGER.info(
-                    "Station %s now queried via container %s",
+                    "Station %s now located via container %s",
                     self.station_id,
                     candidate,
                 )

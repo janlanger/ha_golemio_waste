@@ -11,7 +11,7 @@ from homeassistant.config_entries import (
     ConfigFlowResult,
     OptionsFlowWithReload,
 )
-from homeassistant.const import CONF_LOCATION, CONF_TOKEN
+from homeassistant.const import CONF_LATITUDE, CONF_LOCATION, CONF_LONGITUDE, CONF_TOKEN
 from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.selector import (
@@ -266,6 +266,11 @@ class GolemioWasteConfigFlow(ConfigFlow, domain=DOMAIN):
                 CONF_TOKEN: self._token,
                 CONF_STATION_ID: station.station_id,
                 CONF_QUERY_KSNKO_ID: query_id,
+                **(
+                    {CONF_LATITUDE: station.latitude, CONF_LONGITUDE: station.longitude}
+                    if station.latitude is not None and station.longitude is not None
+                    else {}
+                ),
             },
         )
 

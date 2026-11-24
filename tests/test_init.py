@@ -2,19 +2,27 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
 from datetime import datetime
 
 from homeassistant.config_entries import ConfigEntryState
-from homeassistant.const import STATE_OFF, STATE_ON, STATE_UNAVAILABLE
+from homeassistant.const import CONF_LATITUDE, CONF_LONGITUDE, STATE_OFF, STATE_ON
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.util import dt as dt_util
 import pytest
 
 from custom_components.golemio_waste import async_remove_config_entry_device
-from custom_components.golemio_waste.const import CONF_QUERY_KSNKO_ID, DOMAIN
+from custom_components.golemio_waste.const import DOMAIN
 
-from .conftest import STATION_FEATURE, STATIONS_URL, collection
+from .conftest import (
+    OTHER_FEATURE,
+    STATION_FEATURE,
+    STATION_LATLNG,
+    STATIONS_URL,
+    collection,
+    only_container,
+)
 
 pytestmark = pytest.mark.freeze_time("2026-11-24T12:00:00+00:00")
 
@@ -125,36 +133,56 @@ async def test_calendar(hass: HomeAssistant, mock_api, config_entry) -> None:
     }
 
 
-async def test_query_falls_back_to_other_container(
-    hass: HomeAssistant, mock_api, config_entry, aioclient_mock, freezer
+async def test_all_containers_loaded(
+    hass: HomeAssistant, mock_api, config_entry
 ) -> None:
+    """?ksnkoId= returns a single container; the station must still be complete."""
     await _setup(hass, config_entry)
-    coordinator = config_entry.runtime_data
+    assert set(config_entry.runtime_data.data.station.containers) == {
+        "15288",
+        "15289",
+        "15290",
+        "15291",
+    }
 
-    # Container 15288 disappears; querying by it returns nothing.
-    feature = collection(STATION_FEATURE)["features"][0]
-    feature["properties"]["containers"] = feature["properties"]["containers"][1:]
-    aioclient_mock.clear_requests()
-    aioclient_mock._mocks.clear()  # noqa: SLF001
-    aioclient_mock.get(STATIONS_URL, params={"ksnkoId": "15288"}, json=collection())
+
+async def test_legacy_entry_gets_coordinates(
+    hass: HomeAssistant, mock_api, legacy_config_entry
+) -> None:
+    await _setup(hass, legacy_config_entry)
+    assert len(legacy_config_entry.runtime_data.data.station.containers) == 4
+    assert legacy_config_entry.data[CONF_LATITUDE] == pytest.approx(50.089)
+    assert legacy_config_entry.data[CONF_LONGITUDE] == pytest.approx(14.4168)
+
+
+async def test_relocated_station(
+    hass: HomeAssistant, config_entry, aioclient_mock
+) -> None:
+    """Station no longer at the stored coordinates: relocate via a container ID."""
+    moved = deepcopy(STATION_FEATURE)
+    moved["geometry"]["coordinates"] = [14.5, 50.1]
+    aioclient_mock.get(
+        STATIONS_URL, params={"latlng": STATION_LATLNG}, json=collection(OTHER_FEATURE)
+    )
     aioclient_mock.get(
         STATIONS_URL,
-        params={"ksnkoId": "15289"},
-        json={"type": "FeatureCollection", "features": [feature]},
+        params={"ksnkoId": "15288"},
+        json=collection(only_container(moved, 15288)),
     )
-    await coordinator.async_refresh()
-    await hass.async_block_till_done()
+    aioclient_mock.get(
+        STATIONS_URL, params={"latlng": "50.1,14.5"}, json=collection(moved)
+    )
+    await _setup(hass, config_entry)
 
-    assert coordinator.last_update_success
-    assert config_entry.data[CONF_QUERY_KSNKO_ID] == "15289"
-    gone = hass.states.get(_entity_id(hass, "sensor", "3497_15288_fill_level"))
-    assert gone.state == STATE_UNAVAILABLE
+    assert len(config_entry.runtime_data.data.station.containers) == 4
+    assert config_entry.data[CONF_LATITUDE] == pytest.approx(50.1)
+    assert config_entry.data[CONF_LONGITUDE] == pytest.approx(14.5)
 
 
 async def test_auth_failure_starts_reauth(
     hass: HomeAssistant, config_entry, aioclient_mock
 ) -> None:
-    aioclient_mock.get(STATIONS_URL, params={"ksnkoId": "15288"}, status=401)
+    aioclient_mock.get(STATIONS_URL, status=401)
     config_entry.add_to_hass(hass)
     await hass.config_entries.async_setup(config_entry.entry_id)
     await hass.async_block_till_done()
@@ -166,7 +194,7 @@ async def test_auth_failure_starts_reauth(
 async def test_connection_error_retries(
     hass: HomeAssistant, config_entry, aioclient_mock
 ) -> None:
-    aioclient_mock.get(STATIONS_URL, params={"ksnkoId": "15288"}, status=500)
+    aioclient_mock.get(STATIONS_URL, status=500)
     config_entry.add_to_hass(hass)
     await hass.config_entries.async_setup(config_entry.entry_id)
     assert config_entry.state is ConfigEntryState.SETUP_RETRY
@@ -212,7 +240,7 @@ async def test_forbidden_is_not_auth_failure(
     hass: HomeAssistant, config_entry, aioclient_mock
 ) -> None:
     """403 means "no access to this data", not an invalid token."""
-    aioclient_mock.get(STATIONS_URL, params={"ksnkoId": "15288"}, status=403)
+    aioclient_mock.get(STATIONS_URL, status=403)
     config_entry.add_to_hass(hass)
     await hass.config_entries.async_setup(config_entry.entry_id)
     await hass.async_block_till_done()

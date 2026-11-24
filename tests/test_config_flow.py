@@ -66,6 +66,8 @@ async def test_location_flow(hass: HomeAssistant, aioclient_mock) -> None:
         "token": TOKEN,
         "station_id": "3497",
         "query_ksnko_id": "15288",
+        "latitude": 50.089,
+        "longitude": 14.4168,
     }
     assert result["result"].unique_id == "3497"
 

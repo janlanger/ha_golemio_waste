@@ -5,6 +5,7 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any
 
+from homeassistant.const import CONF_LATITUDE, CONF_LONGITUDE
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -99,19 +100,58 @@ def collection(*features: dict[str, Any]) -> dict[str, Any]:
     return {"type": "FeatureCollection", "features": deepcopy(list(features))}
 
 
+def only_container(feature: dict[str, Any], ksnko_id: int) -> dict[str, Any]:
+    """Return the station the way ``?ksnkoId=`` does: with just that container."""
+    feature = deepcopy(feature)
+    feature["properties"]["containers"] = [
+        c for c in feature["properties"]["containers"] if c["ksnko_id"] == ksnko_id
+    ]
+    return feature
+
+
+STATION_LATLNG = "50.089,14.4168"
+
+
 @pytest.fixture
 def mock_api(aioclient_mock):
     """Answer like Golemio for the test station."""
+    # Search by location returns whole stations, nearest first.
     aioclient_mock.get(
-        STATIONS_URL, params={"ksnkoId": "15288"}, json=collection(STATION_FEATURE)
+        STATIONS_URL,
+        params={"latlng": STATION_LATLNG},
+        json=collection(STATION_FEATURE, OTHER_FEATURE),
     )
-    # Internal endpoint: public tokens get 403 there (reproduces the bug).
+    # Search by KSNKO ID returns the station with only the matching container.
+    for raw in STATION_FEATURE["properties"]["containers"]:
+        aioclient_mock.get(
+            STATIONS_URL,
+            params={"ksnkoId": str(raw["ksnko_id"])},
+            json=collection(only_container(STATION_FEATURE, raw["ksnko_id"])),
+        )
+    # Internal endpoint: public tokens get 403 there.
     aioclient_mock.get(PICKDAYS_URL, status=403)
     return aioclient_mock
 
 
 @pytest.fixture
 def config_entry() -> MockConfigEntry:
+    return MockConfigEntry(
+        domain=DOMAIN,
+        title="Přátelství 356/61",
+        unique_id="3497",
+        data={
+            "token": TOKEN,
+            CONF_STATION_ID: "3497",
+            CONF_QUERY_KSNKO_ID: "15288",
+            CONF_LATITUDE: 50.089,
+            CONF_LONGITUDE: 14.4168,
+        },
+    )
+
+
+@pytest.fixture
+def legacy_config_entry() -> MockConfigEntry:
+    """Entry created by 1.0.x, without station coordinates."""
     return MockConfigEntry(
         domain=DOMAIN,
         title="Přátelství 356/61",
