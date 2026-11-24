@@ -31,7 +31,7 @@
       },
       "manual": {
         "title": "KSNKO ID",
-        "description": "KSNKO ID of any container at the station (or of the station itself).",
+        "description": "KSNKO ID of any container at the station (not the station ID).",
         "data": {
           "ksnko_id": "KSNKO ID"
         }

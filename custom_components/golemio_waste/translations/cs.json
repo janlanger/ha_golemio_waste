@@ -31,7 +31,7 @@
       },
       "manual": {
         "title": "KSNKO ID",
-        "description": "KSNKO ID libovolné nádoby na stanovišti (nebo stanoviště).",
+        "description": "KSNKO ID libovolné nádoby na stanovišti (ne ID stanoviště).",
         "data": {
           "ksnko_id": "KSNKO ID"
         }

@@ -29,7 +29,8 @@ Vyžaduje Home Assistant 2026.8 nebo novější.
 3. Vložte token. Při přidávání dalšího stanoviště se token předvyplní.
 4. Najděte stanoviště:
    - **Hledat na mapě:** výchozí je poloha domova, posuňte značku a upravte poloměr. Stanoviště s čidly zaplněnosti jsou označena 📶.
-   - **Zadat KSNKO ID:** ID libovolné nádoby na stanovišti nebo stanoviště samotného.
+   - **Zadat KSNKO ID:** `ksnko_id` libovolné nádoby na stanovišti. ID stanoviště nefunguje,
+     API filtruje jen podle nádob a čísla stanovišť a nádob se překrývají.
 
 Každé stanoviště je samostatná položka integrace, přidejte jich kolik potřebujete.
 

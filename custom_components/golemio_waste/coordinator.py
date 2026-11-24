@@ -119,11 +119,10 @@ class GolemioCoordinator(DataUpdateCoordinator[GolemioData]):
 
         If the stored container was removed, any other known container works.
         """
-        stored = str(self.config_entry.data.get(CONF_QUERY_KSNKO_ID, self.station_id))
+        stored = str(self.config_entry.data[CONF_QUERY_KSNKO_ID])
         candidates: list[str] = [stored]
         if self.data is not None:
             candidates += [str(k) for k in self.data.station.container_ksnko_ids()]
-        candidates.append(self.station_id)
 
         for candidate in dict.fromkeys(candidates):
             stations = await self.client.stations_by_ksnko_id(candidate)

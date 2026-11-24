@@ -97,7 +97,12 @@ class GolemioClient:
             raise GolemioConnectionError(str(err)) from err
 
     async def stations_by_ksnko_id(self, ksnko_id: int | str) -> list[Station]:
-        """Return stations owning a container (or being a station) with this KSNKO ID."""
+        """Return the station owning the container with this KSNKO ID.
+
+        The returned station lists only that one container. There is no filter
+        by station: station IDs and container KSNKO IDs overlap, so a station ID
+        passed here matches an unrelated container elsewhere.
+        """
         payload = await self._get("/v2/sortedwastestations", {"ksnkoId": ksnko_id})
         if payload is None:
             return []
@@ -108,15 +113,8 @@ class GolemioClient:
 
 
 def select_station(stations: list[Station], ksnko_id: int | str) -> Station | None:
-    """Pick the station matching a KSNKO ID from a ``ksnkoId`` query result.
-
-    Golemio has used the parameter both for station and for container IDs, so
-    accept either and fall back to the only result when it is unambiguous.
-    """
+    """Pick the station holding the container from a ``ksnkoId`` query result."""
     wanted = str(ksnko_id)
-    for station in stations:
-        if station.station_id == wanted:
-            return station
     for station in stations:
         if wanted in station.containers:
             return station

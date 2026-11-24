@@ -46,6 +46,8 @@ def test_parse_requires_features() -> None:
 
 def test_select_station() -> None:
     stations = parse_stations(collection(STATION_FEATURE, OTHER_FEATURE))
-    assert select_station(stations, "3497").station_id == "3497"
+    assert select_station(stations, 15290).station_id == "3497"
     assert select_station(stations, 16000).station_id == "4000"
+    # A station ID is not a container ID.
+    assert select_station(stations, 3497) is None
     assert select_station(stations, 1) is None

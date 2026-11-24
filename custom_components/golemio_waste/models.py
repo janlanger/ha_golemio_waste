@@ -151,12 +151,14 @@ class Station:
     def from_feature(cls, feature: dict[str, Any]) -> Station:
         """Build a station from one GeoJSON feature."""
         props = _as_dict(feature.get("properties"))
-        station_ksnko = _as_int(props.get("ksnko_id"))
+        # The live API only sends "id"; the spec also lists "ksnko_id". Prefer
+        # "id" so the identity stays stable if "ksnko_id" appears later.
         station_db_id = _as_int(props.get("id"))
-        if station_ksnko is not None:
-            station_id = str(station_ksnko)
-        elif station_db_id is not None:
+        station_ksnko = _as_int(props.get("ksnko_id"))
+        if station_db_id is not None:
             station_id = str(station_db_id)
+        elif station_ksnko is not None:
+            station_id = str(station_ksnko)
         else:
             raise ValueError("Station without an identifier")
 

@@ -68,8 +68,7 @@ STATION_FEATURE: dict[str, Any] = {
     "type": "Feature",
     "geometry": {"type": "Point", "coordinates": [14.4168, 50.0890]},
     "properties": {
-        "id": 1,
-        "ksnko_id": 3497,
+        "id": 3497,
         "name": "Přátelství 356/61",
         "station_number": "0022/ 001",
         "district": "praha-22",
@@ -88,8 +87,7 @@ OTHER_FEATURE: dict[str, Any] = {
     "type": "Feature",
     "geometry": {"type": "Point", "coordinates": [14.42, 50.09]},
     "properties": {
-        "id": 2,
-        "ksnko_id": 4000,
+        "id": 4000,
         "name": "Jiná 1",
         "containers": [container(16000, 7, "Čiré sklo")],
     },
